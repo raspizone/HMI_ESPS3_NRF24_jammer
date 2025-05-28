@@ -129,7 +129,7 @@ SPIClass* hspi = nullptr;
 #define HSPI_MOSI  6
 #define HSPI_SCLK  5
 #define HSPI_SS    19
-
+char payload[32];
 
 void show_test(int lcd_w, int lcd_h, int x, int y, const char * text)
 {
@@ -179,18 +179,28 @@ void setup() {
   radio.setDataRate(RF24_2MBPS);  //RF24_250KBPS  RF24_1MBPS  RF24_2MBPS
   radio.setChannel(50);
   radio.stopListening();
+  
+  for (int i = 0; i < 32; i++) {
+    payload[i] = random(0, 256);
+  }
+
 }
-int i = 0;
+
 void loop() {
-  Serial.println(F("loop init"));
-  Serial.println(F("SEND !!"));
-  String str = "SEND !!";
-  str += String(i);
-  show_test(800, 480, 300, 230, str.c_str());
-  i++;
-  const char text[] = "Hello World";
-  byte randomChannel = random(0, 126);  
-  radio.setChannel(randomChannel);
-  radio.write(&text, sizeof(text));
-  delay(100);
+  int channel = random(2, 81);
+  radio.setChannel(channel);
+  Serial.print("Channel: ");
+  Serial.println(channel);
+  
+  // writeFast coloca el paquete en el FIFO si hay espacio
+  if (radio.writeFast(&payload, sizeof(payload))) {
+    // Si se pudo poner en cola, forzamos el envío si el buffer se llena
+    radio.txStandBy();  // Espera hasta que se vacíe el FIFO
+  } else {
+    // Si falla, posiblemente FIFO lleno. Esperamos brevemente.
+    delayMicroseconds(100);  // Ajusta si hace falta
+  }
+
+   // muy corto para cambiar de canal frecuentemente
 }
+
